@@ -26,7 +26,7 @@
                     await this.port.open({ baudRate: 115200, dataBits: 8, stopBits: 1, parity: "none" });
                     console.log('串口连接成功!');
 
-                    while (this.port&&this.port.readable) {
+                    while (this.port && this.port.readable) {
                         this.reader = this.port.readable.getReader();
 
                         try {
@@ -37,11 +37,16 @@
                                     break;
                                 }
                                 if (value) {
-                                    console.log('接收数据:',value);
+                                    console.log('接收数据:', value);
+
+                                    //转换成Response对象
+                                    const response = new MessageResponse(value);
+
+                                    response.unpack();
                                 }
                             }
                         } catch (error) {
-                            console.error("读取串口出错:",error);
+                            console.error("读取串口出错:", error);
                         }
                     }
                 } catch (error) {
@@ -51,7 +56,7 @@
                 console.error("该浏览器不支持串口!");
             }
         }
-        
+
         /**
          * 发送方法
          */
@@ -61,7 +66,7 @@
                     this.sequence++;
                     this.writer = this.port.writable.getWriter();
 
-                    let message = messageRequest.serialize(this.sequence);
+                    let message = messageRequest.pack(this.sequence);
                     console.log('发送数据:', message);
                     await this.writer.write(message);
 
@@ -75,9 +80,9 @@
             }
         }
 
-/**
- * 关闭方法
- */
+        /**
+         * 关闭方法
+         */
         async close() {
 
             if (this.port) {
@@ -97,10 +102,7 @@
                         console.error(error);
                     }
                 }
-
-
             }
-
         }
     }
 
@@ -126,7 +128,10 @@
             return bytes;
         }
 
-        serialize(sequence) {
+        /**
+         * 打包
+         */
+        pack(sequence) {
             let index = 0;
             this._data[index++] = 0xFE;
             this._data[index++] = 0xFE;
@@ -142,17 +147,21 @@
             });
 
             this._data[index++] = sequence;
-            this._data[index++] = this.verify();
+            this._data[index++] = this.createToken();
             this._data[index++] = 0x16;
 
             return this._data;
         }
 
-        verify() {
+        /**
+         * 生产令牌
+         */
+        createToken() {
             let verifyCode = 0;
 
             for (let index = 2; index < this._data.length - 2; index++) {
-                verifyCode += this._data[index];
+                const element = this._data[index];
+                verifyCode += element;
             }
             return verifyCode = verifyCode % 256;
         }
@@ -162,8 +171,60 @@
      * 消息响应对象
      */
     class MessageResponse {
-        deserialize(message) {
+        constructor(message) {
+            this._data = message;
+        }
 
+        /**
+         * 解包
+         */
+        unpack() {
+            if (this._data.length < 2) {
+                return;
+            }
+
+            this.preprocess();
+
+            if (this.verify()) {
+                console.log('完整包:',this._data);
+                let context = this._data.slice(5, this._data.length - 3);
+                console.log('返回内容:', context);
+            } else {
+                throw new Error('消息验证失败!请重试');
+            }
+        }
+
+        /**
+         * 预处理
+         */
+        preprocess(){
+            let removeStart=0;
+
+            for (let index = 0; index < this._data.length; index++) {
+                if( this._data[index]!=0xFE){
+                    removeStart=index;
+                    break;
+                }
+            }
+
+            this._data= this._data.slice(removeStart,this._data.length);
+        }
+
+        /**
+         * 验证令牌
+         */
+        verify() {
+            let verifyCode = 0;
+            for (let index = 0; index < this._data.length - 2; index++) {
+                const element = this._data[index];
+                verifyCode += element;
+            }
+
+            verifyCode = verifyCode % 256;
+
+            let token = this._data[this._data.length - 2];
+
+            return verifyCode == token;
         }
     }
 
@@ -179,18 +240,15 @@
     connectButton.addEventListener('pointerdown', () => {
         messageSender.connect();
     });
+
     sendMessageButton.addEventListener('pointerdown', () => {
-        sendSerialMessage();
+        let messageRequest = new MessageRequest(0x05, new Uint8Array([0x02, 0x00, 0x80, 0x04, 0x00, 0x80]));
+        messageSender.send(messageRequest);
     });
+
     closeButton.addEventListener('pointerdown', () => {
         messageSender.close();
     });
-
-    //发送方法
-    async function sendSerialMessage() {
-        let messageRequest = new MessageRequest(0x05, new Uint8Array([0x02, 0x00, 0x80, 0x04, 0x00, 0x80]));
-        await messageSender.send(messageRequest);
-    }
 
 </script>
 
