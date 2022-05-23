@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+<button id="connect_serial">连接串口</button>
+<button id="close_serial">关闭串口</button>
+<input id="Context" type="text" />
+
+<button id="send_message">发送</button>
+<p>输出:</p>
+<p id="tip"></p>
+<script>
+    "use strict";
+
+
+
+    class MessageSender {
+
+        constructor() {
+            this.encoder = new TextEncoder();
+            //this.decoder=new TestDecoder();
+        }
+
+        async connect() {
+            if ('serial' in navigator) {
+                try {
+                    this.sequence = 0;
+                    this.port = await navigator.serial.requestPort();
+
+                    await this.port.open({ baudRate: 115200, dataBits: 8, stopBits: 1, parity: "none" });
+                    console.log('串口连接成功!');
+
+                    while (this.port&&this.port.readable) {
+                        this.reader = this.port.readable.getReader();
+
+                        try {
+                            while (true) {
+                                const { value, done } = await this.reader.read();
+                                if (done) {
+                                    // Allow the serial port to be closed later.
+                                    this.reader.releaseLock();
+                                    break;
+                                }
+                                if (value) {
+                                    console.log('接收数据:',value);
+                                }
+                            }
+                        } catch (error) {
+                            console.error("读取串口出错:",error);
+                        }
+                    }
+                } catch (error) {
+                    console.error("打开串口失败:", error);
+                }
+            } else {
+                console.error("该浏览器不支持串口!");
+            }
+        }
+
+        async send(messageRequest) {
+            if (this.port) {
+                try {
+                    this.sequence++;
+                    this.writer = this.port.writable.getWriter();
+
+                    let message = messageRequest.serialize(this.sequence);
+                    console.log('发送数据:', message);
+                    await this.writer.write(message);
+
+                    this.writer.releaseLock();
+                    return message;
+                } catch (error) {
+                    const errorMessage = `写入数据时出错:${error}`;
+                    console.error(error);
+                    return errorMessage;
+                }
+            }
+        }
+
+        async close() {
+
+            if (this.port) {
+                const localPort = this.port;
+                this.port = undefined;
+
+                if (this.reader) {
+                    await this.reader.cancel();
+                }
+
+                if (localPort) {
+                    try {
+                        await localPort.close();
+                        console.log('串口关闭成功!');
+                    } catch (error) {
+                        const errorMessage = `关闭串口出错:${error}`;
+                        console.error(error);
+                    }
+                }
+
+
+            }
+
+        }
+    }
+
+    class MessageRequest {
+        constructor(code, info) {
+            this._code = code;
+            this._info = info;
+            this._infoLength = this._info.length;
+
+            this._data = new Uint8Array(10 + this._infoLength);
+        }
+
+        static intToBytes(number, length) {
+            var bytes = [];
+            var i = length;
+            do {
+                bytes[--i] = number & (255);
+                number = number >> 8;
+            } while (i);
+            return bytes;
+        }
+
+        serialize(sequence) {
+            let index = 0;
+            this._data[index++] = 0xFE;
+            this._data[index++] = 0xFE;
+            this._data[index++] = 0x68;
+            this._data[index++] = 0x25;
+            this._data[index++] = this._code;
+            let infoLengthArray = MessageRequest.intToBytes(this._infoLength, 2);
+            this._data[index++] = infoLengthArray[0];
+            this._data[index++] = infoLengthArray[1];
+
+            this._info.forEach(element => {
+                this._data[index++] = element;
+            });
+
+            this._data[index++] = sequence;
+            this._data[index++] = this.verify();
+            this._data[index++] = 0x16;
+
+            return this._data;
+        }
+
+        verify() {
+            let verifyCode = 0;
+
+            for (let index = 2; index < this._data.length - 2; index++) {
+                verifyCode += this._data[index];
+            }
+            return verifyCode = verifyCode % 256;
+        }
+    }
+
+    class MessageResponse {
+        deserialize(message) {
+
+        }
+    }
+
+
+    const messageSender = new MessageSender();
+
+    const connect = document.getElementById('connect_serial');
+
+    const sendMessage = document.getElementById('send_message');
+
+    const close = document.getElementById('close_serial');
+
+    connect.addEventListener('pointerdown', () => {
+        messageSender.connect();
+    });
+
+    sendMessage.addEventListener('pointerdown', () => {
+        sendSerialMessage();
+    });
+
+    close.addEventListener('pointerdown', () => {
+        messageSender.close();
+    });
+
+
+    async function sendSerialMessage() {
+        let messageRequest = new MessageRequest(0x05, new Uint8Array([0x02, 0x00, 0x80, 0x04, 0x00, 0x80]));
+        await messageSender.send(messageRequest);
+    }
+
+</script>
+
+</html>
