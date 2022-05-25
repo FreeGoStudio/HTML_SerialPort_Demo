@@ -1,4 +1,6 @@
 "use strict";
+import * as IntConvert from './int-convert.js';
+import * as BytesConvert from './bytes-convert.js';
 /**
  * 消息发送器类
  */
@@ -18,12 +20,12 @@ export class MessageSender {
      * @param {byte} stopBits 停止位
      * @param {string} parity 奇偶校验位
      */
-    async connect(baudRate,dataBits,stopBits,parity) {
+    async connect(baudRate, dataBits, stopBits, parity) {
         if ('serial' in navigator) {
             try {
                 this.sequence = 0;
                 this.port = await navigator.serial.requestPort();
-                
+
                 //建立连接
                 await this.port.open({ baudRate: baudRate, dataBits: dataBits, stopBits: stopBits, parity: parity });
                 console.log('串口连接成功!');
@@ -33,7 +35,7 @@ export class MessageSender {
                     this.reader = this.port.readable.getReader();
 
                     try {
-
+                        let cache = [];
                         while (true) {
                             const { value, done } = await this.reader.read();
 
@@ -44,9 +46,56 @@ export class MessageSender {
                             }
 
                             if (value) {
-                                const response = new MessageResponse(value);
-                                response.unpack();
-                                this._callback(response);
+                                let temp = Array.prototype.slice.call(value);
+                                cache = cache.concat(temp);
+
+                                if (cache.length > 10) {
+                                    //检测缓冲区的开始是否正确, 如果不正确则丢弃
+                                    if (cache[0] == 0xFE
+                                        && cache[1] == 0xFE
+                                        && cache[2] == 0xFE
+                                        && cache[3] == 0x68
+                                        && cache[4] == 0x26) {
+                                        //进行判断是否是完整的包
+                                        let contentLength = IntConvert.fromBytesBigEndian(cache.slice(6, 8));
+
+                                        if (cache.length > 10 + contentLength) {
+                                            //判断最后一位是否为尾码
+                                            if (cache[10 + contentLength] == 0x16) {
+                                                //获取该部分
+                                                let content = cache.slice(0,11 + contentLength);
+
+                                                cache.splice(0, 11 + contentLength);
+
+                                                const response = new MessageResponse(content);
+                                                response.unpack();
+                                                this._callback(response);
+                                            } else {
+                                                //无效
+                                                cache.splice(0, 10 + contentLength);
+                                            }
+                                        }
+
+                                    } else {
+                                        //将缓冲区的包丢弃, 直到下一个连续的0x16,0xFE,0xFE,0xFE
+                                        for (let index = 0; index < cache.length; index++) {
+                                            //边界判断
+                                            if (index + 3 >= cache.length) {
+                                                break;
+                                            }
+
+                                            if (cache[index] == 0x16
+                                                && cache[index + 1] == 0xFE
+                                                && cache[index + 2] == 0xFE
+                                                && cache[index + 3] == 0xFE
+                                                && cache[index + 4] == 0x68
+                                                && cache[index + 5] == 0x26) {
+                                                //丢弃之前的内容
+                                                cache.splice(0, index + 1);
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
 
@@ -54,8 +103,6 @@ export class MessageSender {
                         console.error("读取串口出错:", error);
                         this.reader.releaseLock();
                     }
-
-                    
                 }
             } catch (error) {
                 console.error("打开串口失败:", error);
@@ -76,12 +123,12 @@ export class MessageSender {
 
                 let message = messageRequest.pack(this.sequence);
 
-                let hexString='';
+                let hexString = '';
                 message.forEach(element => {
-                    hexString+=element.toString(16).toUpperCase()+','
+                    hexString += element.toString(16).toUpperCase() + ','
                 });
                 console.log('发送数据:', hexString);
-                
+
                 await this.writer.write(message);
 
                 this.writer.releaseLock();
@@ -151,7 +198,7 @@ export class MessageRequest {
         this._data[index++] = 0x68;
         this._data[index++] = 0x25;
         this._data[index++] = this._code;
-        let infoLengthArray = MessageRequest.intToBytes(this._infoLength, 2);
+        let infoLengthArray =  BytesConvert.toBytesBigEndian(this._infoLength, 2);
         this._data[index++] = infoLengthArray[0];
         this._data[index++] = infoLengthArray[1];
 
@@ -188,7 +235,7 @@ export class MessageResponse {
         this._data = message;
     }
 
-    get data(){
+    get data() {
         return this._data;
     }
 

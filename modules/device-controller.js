@@ -1,43 +1,13 @@
 "use strict";
 import * as SerialPort from './serial-port.js';
+import * as ByteConvert from './bytes-convert.js';
+
 /**
  * 设备控制器
  */
 export class DeviceController {
     constructor(callback) {
         this._messageSender = new SerialPort.MessageSender(callback);
-    }
-
-    /**
-     * 将整形数转换成小端模式byte数组
-     * @param {int} number 要转换的整形数值
-     * @param {int} length 要转成什么byte数组，规定数组的长度
-     * @returns {byte[]} byte数组
-     */
-    static IntToBytesLittleEndian(number, length) {
-        var bytes = [];
-        var i = 0;
-        do {
-            bytes[i++] = number & (255);
-            number = number >> 8;
-        } while (i < length)
-        return bytes;
-    }
-
-    /**
-     * 将整形数转换成大端模式byte数组
-     * @param {int} number 要转换的整形数值
-     * @param {int} length 要转成什么byte数组，规定数组的长度
-     * @returns {byte[]} byte数组
-     */
-    static IntToBytesBigEndian(number, length) {
-        var bytes = [];
-        var i = length;
-        do {
-            bytes[--i] = number & (255);
-            number = number >> 8;
-        } while (i)
-        return bytes;
     }
 
     /**
@@ -71,8 +41,8 @@ export class DeviceController {
      */
     async beeperAndLed(beeperTime, beeperCycle, ledTime, ledFlashCycle) {
         if (beeperTime) {
-            let beeperTimeArray = DeviceController.IntToBytesBigEndian(beeperTime, 2);
-            let ledTimeArray = DeviceController.IntToBytesLittleEndian(ledTime, 2);
+            let beeperTimeArray = ByteConvert.toBytesBigEndian(beeperTime, 2);
+            let ledTimeArray = ByteConvert.toBytesLittleEndian(ledTime, 2);
 
             let message = new Uint8Array(6);
             message[0] = beeperTimeArray[0];
@@ -102,7 +72,7 @@ export class DeviceController {
      * @param {*} duration 指令超时时长,单位:ms
      */
     async cardSelectCancel(duration) {
-        let durationArray = DeviceController.IntToBytesBigEndian(duration, 2);
+        let durationArray = ByteConvert.toBytesBigEndian(duration, 2);
 
         let message = new Uint8Array(2);
         message[0] = durationArray[0];
@@ -117,7 +87,7 @@ export class DeviceController {
      * @param {int} duration 指令超时时长,单位:ms
      */
     async cardPending(duration) {
-        let durationArray = DeviceController.IntToBytesBigEndian(duration, 2);
+        let durationArray = ByteConvert.toBytesBigEndian(duration, 2);
 
         let message = new Uint8Array(2);
         message[0] = durationArray[0];
