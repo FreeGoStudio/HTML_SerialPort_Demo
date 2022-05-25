@@ -44,7 +44,7 @@ export class DeviceController {
      * 连接设备
      */
     async connect() {
-        this._messageSender.connect();
+        this._messageSender.connect(115200,8,1,"none");
     }
 
     /**

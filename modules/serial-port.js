@@ -3,19 +3,28 @@
  * 消息发送器类
  */
 export class MessageSender {
+    /**
+     * 构造函数
+     * @param {*function} callback 回调函数
+     */
     constructor(callback) {
         this._callback = callback;
     }
+
     /**
      * 连接串口
+     * @param {int} baudRate 波特率
+     * @param {byte} dataBits 数据位
+     * @param {byte} stopBits 停止位
+     * @param {string} parity 奇偶校验位
      */
-    async connect() {
+    async connect(baudRate,dataBits,stopBits,parity) {
         if ('serial' in navigator) {
             try {
                 this.sequence = 0;
                 this.port = await navigator.serial.requestPort();
 
-                await this.port.open({ baudRate: 115200, dataBits: 8, stopBits: 1, parity: "none" });
+                await this.port.open({ baudRate: baudRate, dataBits: dataBits, stopBits: stopBits, parity: parity });
                 console.log('串口连接成功!');
 
                 while (this.port && this.port.readable) {

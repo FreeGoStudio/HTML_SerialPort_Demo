@@ -1,7 +1,7 @@
 import * as Device from './modules/device-controller.js';
 
 function receive(response) {
-    console.log('blockIndex:',blockIndex,'content:', response.data);
+    console.log('接收数据-- blockIndex:',blockIndex,'content:', response.data);
 }
 
 //创建设备控制器
