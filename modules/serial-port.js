@@ -2,7 +2,10 @@
 /**
  * 消息发送器类
  */
- export class MessageSender {
+export class MessageSender {
+    constructor(callback) {
+        this._callback = callback;
+    }
     /**
      * 连接串口
      */
@@ -19,21 +22,21 @@
                     this.reader = this.port.readable.getReader();
 
                     try {
+
                         while (true) {
                             const { value, done } = await this.reader.read();
                             if (done) {
                                 this.reader.releaseLock();
                                 break;
                             }
+
                             if (value) {
-                                console.log('接收数据:', value);
-
-                                //转换成Response对象
                                 const response = new MessageResponse(value);
-
                                 response.unpack();
+                                this._callback(response);
                             }
                         }
+
                     } catch (error) {
                         console.error("读取串口出错:", error);
                     }
@@ -56,15 +59,20 @@
                 this.writer = this.port.writable.getWriter();
 
                 let message = messageRequest.pack(this.sequence);
-                console.log('发送数据:', message);
+
+                let hexString='';
+                message.forEach(element => {
+                    hexString+=element.toString(16).toUpperCase()+','
+                });
+                console.log('发送数据:', hexString);
+                
                 await this.writer.write(message);
 
                 this.writer.releaseLock();
                 return message;
             } catch (error) {
                 const errorMessage = `写入数据时出错:${error}`;
-                console.error(error);
-                return errorMessage;
+                console.error(errorMessage);
             }
         }
     }
@@ -98,7 +106,7 @@
 /**
  * 消息请求对象
  */
- export class MessageRequest {
+export class MessageRequest {
     constructor(code, info) {
         this._code = code;
         this._info = info;
@@ -159,9 +167,13 @@
 /**
  * 消息响应对象
  */
- export class MessageResponse {
+export class MessageResponse {
     constructor(message) {
         this._data = message;
+    }
+
+    get data(){
+        return this._data;
     }
 
     /**
@@ -175,9 +187,8 @@
         this.preprocess();
 
         if (this.verify()) {
-            console.log('完整包:', this._data);
-            let context = this._data.slice(5, this._data.length - 3);
-            console.log('返回内容:', context);
+            let content = this._data.slice(5, this._data.length - 3);
+            return content;
         } else {
             throw new Error('消息验证失败!请重试');
         }
