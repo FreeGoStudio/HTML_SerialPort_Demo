@@ -22,7 +22,7 @@ closeButton.addEventListener('pointerdown', () => {
     deviceController.close();
 });
 
-var blockIndex=19;
+var blockIndex=0;
 
 sendMessageButton.addEventListener('pointerdown', () => {
     let index = selectButton.selectedIndex;
@@ -73,7 +73,14 @@ sendMessageButton.addEventListener('pointerdown', () => {
             break;
         //0x23:写指定块号(使用已下载秘钥)
         case 8:
-            deviceController.m1WriteContentByKey(0, 0, new Uint8Array([0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10]));
+            setInterval(() => {
+                if(blockIndex>255){
+                    clearInterval(this);
+                }
+                deviceController.m1WriteContentByKey(blockIndex, 0, new Uint8Array([0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10]));
+                blockIndex++;
+            }, 2000);
+            //deviceController.m1WriteContentByKey(0, 0, new Uint8Array([0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10]));
             break;
         //0x24:读指定块内容(使用指令秘钥)
         case 9:

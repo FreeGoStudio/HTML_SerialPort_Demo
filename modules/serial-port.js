@@ -23,10 +23,12 @@ export class MessageSender {
             try {
                 this.sequence = 0;
                 this.port = await navigator.serial.requestPort();
-
+                
+                //建立连接
                 await this.port.open({ baudRate: baudRate, dataBits: dataBits, stopBits: stopBits, parity: parity });
                 console.log('串口连接成功!');
 
+                //读取数据
                 while (this.port && this.port.readable) {
                     this.reader = this.port.readable.getReader();
 
@@ -34,7 +36,9 @@ export class MessageSender {
 
                         while (true) {
                             const { value, done } = await this.reader.read();
+
                             if (done) {
+                                //串行端口已关闭或没有更多数据进入
                                 this.reader.releaseLock();
                                 break;
                             }
@@ -48,7 +52,10 @@ export class MessageSender {
 
                     } catch (error) {
                         console.error("读取串口出错:", error);
+                        this.reader.releaseLock();
                     }
+
+                    
                 }
             } catch (error) {
                 console.error("打开串口失败:", error);
@@ -199,8 +206,8 @@ export class MessageResponse {
             let content = this._data.slice(5, this._data.length - 3);
             return content;
         } else {
-            console.log('消息验证失败!请重试');
-            //throw new Error('消息验证失败!请重试');
+            //console.log('消息验证失败!请重试');
+            throw new Error('消息验证失败!请重试');
         }
     }
 
