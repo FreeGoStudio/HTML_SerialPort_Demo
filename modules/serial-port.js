@@ -199,7 +199,8 @@ export class MessageResponse {
             let content = this._data.slice(5, this._data.length - 3);
             return content;
         } else {
-            throw new Error('消息验证失败!请重试');
+            console.log('消息验证失败!请重试');
+            //throw new Error('消息验证失败!请重试');
         }
     }
 
