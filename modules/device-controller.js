@@ -163,12 +163,16 @@ export class DeviceController {
      * @param {Uint8Array} content 写入数据内容,长度小于16
      */
     async m1WriteContentByKey(block, passwordType, content) {
-        if (block > 255) {
-            throw new Error('区块号不能大于255!');
+        if (block > 63) {
+            throw new Error('区块号不能大于63!');
         }
 
         if (content.length != 16) {
             throw new Error('写入数据内容的长度不等于16!');
+        }
+
+        if(block%4==3){
+            throw new Error('尾块不能写入数据!');
         }
 
         let message = new Uint8Array(2 + content.length);
@@ -189,12 +193,8 @@ export class DeviceController {
      * @param {Uint8Array} password 密码内容,固定长度6
      */
     async m1ReadContentByCommand(block, passwordType, password) {
-        if (block > 255) {
-            throw new Error('区块号不能大于255!');
-        }
-
-        if (password.length != 6) {
-            throw new Error('密码的长度不等于6!');
+        if (block > 63) {
+            throw new Error('区块号不能大于63!');
         }
 
         let message = new Uint8Array(2 + password.length);
@@ -214,8 +214,8 @@ export class DeviceController {
      * @param {Uint8Array} content 写入数据内容,长度小于16
      */
     async m1WriteContentByCommand(block, passwordType, password, content) {
-        if (block > 255) {
-            throw new Error('区块号不能大于255!');
+        if (block > 63) {
+            throw new Error('区块号不能大于63!');
         }
 
         if (password.length != 6) {
@@ -224,6 +224,10 @@ export class DeviceController {
 
         if (content.length != 16) {
             throw new Error('写入数据内容的长度不等于16!');
+        }
+
+        if(block%4==3){
+            throw new Error('尾块不能写入数据!');
         }
 
         console.log("m1WriteContentByCommand.password:", password);

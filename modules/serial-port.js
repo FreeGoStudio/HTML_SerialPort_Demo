@@ -46,7 +46,6 @@ export class MessageSender {
                             }
 
                             if (value) {
-                                console.log('value:',value);
                                 let temp = Array.prototype.slice.call(value);
                                 cache = cache.concat(temp);
 

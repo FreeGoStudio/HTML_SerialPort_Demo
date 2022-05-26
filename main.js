@@ -1,7 +1,7 @@
 import * as Device from './modules/device-controller.js';
 
 function receive(response) {
-    console.log('接收数据-- blockIndex:',blockIndex,' response.data:',response.data);
+    console.log('接收数据-- blockIndex:', blockIndex, ' response.data:', response.data);
 }
 
 //创建设备控制器
@@ -12,6 +12,7 @@ const connectButton = document.getElementById('connect_serial');
 const sendMessageButton = document.getElementById('send_message');
 const closeButton = document.getElementById('close_serial');
 const selectButton = document.getElementById('function_code');
+const textInput=document.getElementById('blockText');
 
 //绑定DOM元素事件
 connectButton.addEventListener('pointerdown', () => {
@@ -22,7 +23,7 @@ closeButton.addEventListener('pointerdown', () => {
     deviceController.close();
 });
 
-var blockIndex=0;
+var blockIndex = 0;
 
 sendMessageButton.addEventListener('pointerdown', () => {
     let index = selectButton.selectedIndex;
@@ -54,42 +55,36 @@ sendMessageButton.addEventListener('pointerdown', () => {
             break;
         //0x21:下载密码表
         case 6:
-            let passwordList = new Array();
-            passwordList[0] = new Device.PasswordGroup(0, 0, new Uint8Array([0x01, 0x02, 0x03, 0x04, 0x05, 0x06]));
-            passwordList[1] = new Device.PasswordGroup(8, 1, new Uint8Array([0x01, 0x02, 0x02, 0x01, 0x03, 0x04]));
-
-            deviceController.m1DownloadPasswordList(passwordList);
+            setInterval(() => {
+                if(blockIndex>=128){
+                    clearInterval(this);
+                }
+                let passwordList = new Array();
+                passwordList[0] = new Device.PasswordGroup(blockIndex, 0, new Uint8Array([0x01, 0x01, 0x01, 0x01, 0x01, 0x01]));
+                deviceController.m1DownloadPasswordList(passwordList);
+              
+                blockIndex++;
+            }, 2000);
+          
             break;
         //0x22:读指定块内容(使用已下载秘钥)
         case 7:
-            setInterval(() => {
-                if(blockIndex>255){
-                    clearInterval(this);
-                }
-                deviceController.m1ReadContentByKey(blockIndex, 0);
-                blockIndex++;
-            }, 2000);
             
+            deviceController.m1ReadContentByKey(textInput.value, 0);
             break;
         //0x23:写指定块号(使用已下载秘钥)
         case 8:
-            setInterval(() => {
-                if(blockIndex>255){
-                    clearInterval(this);
-                }
-                deviceController.m1WriteContentByKey(blockIndex, 0, new Uint8Array([0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10]));
-                blockIndex++;
-            }, 2000);
-            //deviceController.m1WriteContentByKey(0, 0, new Uint8Array([0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10]));
+
+            deviceController.m1WriteContentByKey(textInput.value, 0, new Uint8Array([0x03, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10]));
             break;
-        //0x24:读指定块内容(使用指令秘钥)
-        case 9:
-            deviceController.m1ReadContentByCommand(4,0, new Uint8Array([0x01, 0x02, 0x03, 0x04, 0x05, 0x06]));
-            break;
-        //0x25:写指定块(使用指令秘钥)
-        case 10:
-            deviceController.m1WriteContentByCommand(0,0,new Uint8Array([0x01, 0x02, 0x03, 0x04, 0x05, 0x06]),new Uint8Array([0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10]));
-            break;
+        // //0x24:读指定块内容(使用指令秘钥)
+        // case 9:
+        //     deviceController.m1ReadContentByCommand(40,0, new Uint8Array([0x01, 0x02, 0x02, 0x01, 0x03, 0x04]));
+        //     break;
+        // //0x25:写指定块(使用指令秘钥)
+        // case 10:
+        //     deviceController.m1WriteContentByCommand(40,0,new Uint8Array([0x01, 0x02, 0x02, 0x01, 0x03, 0x04]),new Uint8Array([0x02, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10]));
+        //     break;
         // //0x07:CPU 卡请求
         // case 11:
 
