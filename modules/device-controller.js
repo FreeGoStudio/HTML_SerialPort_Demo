@@ -133,7 +133,7 @@ export class DeviceController {
                 }
             }
 
-            console.log("m1DownloadPasswordList.message:", message);
+            //console.log("m1DownloadPasswordList.message:", message);
 
             let messageRequest = new SerialPort.MessageRequest(0x21, message);
             this._messageSender.send(messageRequest);
